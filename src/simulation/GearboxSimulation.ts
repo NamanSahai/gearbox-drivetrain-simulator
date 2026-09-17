@@ -93,7 +93,7 @@ export function wouldGrindOnShift(clutchPedal: number): boolean {
 }
 
 export function isMoneyShift(from: GearId, to: GearId, speedKmh: number): boolean {
-  return from === 5 && to === 1 && speedKmh >= 100;
+  return (from === 5 && to === 1 && speedKmh >= 80) || (from >= 3 && to === 1 && speedKmh >= 70);
 }
 
 export function isReverseClash(to: GearId, speedKmh: number): boolean {
@@ -296,8 +296,54 @@ export class GearboxSimulation {
       };
     }
 
+    if (next === this.gear) {
+      return {
+        accepted: true,
+        grind: false,
+        destroyed: false,
+        destroyReason: "",
+        gear: this.gear,
+        feedback: this.feedback,
+      };
+    }
+
+    // 1. Catastrophic Reverse Clash: shifting into Reverse while driving forward at speed
+    if (isReverseClash(next, this.speedKmh)) {
+      this.destroy("REVERSE CLASH — idler sheared against a forward-spinning main gear");
+      return {
+        accepted: false,
+        grind: true,
+        destroyed: true,
+        destroyReason: this.destroyReason,
+        gear: this.gear,
+        feedback: this.destroyReason,
+      };
+    }
+
+    // 2. Catastrophic Money Shift / Severe Downshift Over-Rev:
+    // Downshifting from a higher gear to a lower gear where current road speed forces engine beyond safe 8,200 RPM redline
+    const isDownshift = this.gear > 0 && next > 0 && next < this.gear;
+    const forcedRpm = forcedEngineRpm(this.speedKmh, next);
+    const isCatastrophicDownshift =
+      isMoneyShift(this.gear, next, this.speedKmh) ||
+      (isDownshift && (forcedRpm > 8200 || isOverRevShift(next, this.speedKmh)));
+
+    if (isCatastrophicDownshift) {
+      const rpm = Math.round(forcedRpm);
+      this.destroy(`MONEY SHIFT — forced ${rpm.toLocaleString()} RPM! Valve float, clutch burst & 1st gear shattered`);
+      return {
+        accepted: false,
+        grind: false,
+        destroyed: true,
+        destroyReason: this.destroyReason,
+        gear: this.gear,
+        feedback: this.destroyReason,
+      };
+    }
+
     // Auto-clutch mode for mobile/touch or educational quick-shifting:
     if (options?.autoClutch) {
+      const isUpshift = next > this.gear;
       this.gear = next;
       this.grindActive = false;
       this.grindTimer = 0;
@@ -310,23 +356,23 @@ export class GearboxSimulation {
         this.speedKmh = Math.max(0, this.speedKmh * 0.7);
         this.feedback = "Neutral — Output shaft decoupled; mainshaft freewheeling";
       } else if (next === 1) {
-        this.speedKmh = 18;
+        this.speedKmh = isUpshift || this.speedKmh <= 0 ? 18 : Math.min(this.speedKmh, 28);
         this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, 1));
         this.feedback = "1st Gear Engaged (3.60:1) — High torque multiplication for launch";
       } else if (next === 2) {
-        this.speedKmh = 34;
+        this.speedKmh = isUpshift || this.speedKmh <= 0 ? 34 : Math.min(this.speedKmh, 48);
         this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, 2));
         this.feedback = "2nd Gear Engaged (2.10:1) — Intermediate reduction for acceleration";
       } else if (next === 3) {
-        this.speedKmh = 52;
+        this.speedKmh = isUpshift || this.speedKmh <= 0 ? 52 : Math.min(this.speedKmh, 68);
         this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, 3));
         this.feedback = "3rd Gear Engaged (1.40:1) — Mid-range ratio for city cruising";
       } else if (next === 4) {
-        this.speedKmh = 75;
+        this.speedKmh = isUpshift || this.speedKmh <= 0 ? 75 : Math.min(this.speedKmh, 90);
         this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, 4));
         this.feedback = "4th Gear Direct Drive (1.00:1) — Input locks to output shaft; 100% efficient";
       } else if (next === 5) {
-        this.speedKmh = 96;
+        this.speedKmh = isUpshift || this.speedKmh <= 0 ? 96 : Math.max(this.speedKmh, 96);
         this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, 5));
         this.feedback = "5th Gear Overdrive (0.78:1) — Output spins faster than engine for highway economy";
       } else if (next === -1) {
@@ -337,17 +383,6 @@ export class GearboxSimulation {
 
       this.outputRpm = outputRpmFromSpeed(this.speedKmh);
       this.syncShafts();
-      return {
-        accepted: true,
-        grind: false,
-        destroyed: false,
-        destroyReason: "",
-        gear: this.gear,
-        feedback: this.feedback,
-      };
-    }
-
-    if (next === this.gear) {
       return {
         accepted: true,
         grind: false,

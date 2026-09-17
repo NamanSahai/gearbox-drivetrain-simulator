@@ -71,10 +71,32 @@ body {
 #app.ar-mode-active .sheet,
 #app.ar-mode-active .quick-shifter-bar,
 #app.ar-mode-active .pedal-cluster,
-#app.ar-mode-active .lesson-card,
-#app.ar-mode-active .restart-btn,
-#app.ar-mode-active .repair-btn {
+#app.ar-mode-active .lesson-card {
   display: none !important;
+}
+
+.repair-btn {
+  position: fixed;
+  bottom: calc(140px + var(--safe-b));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  border-radius: 99px !important;
+  padding: 12px 28px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.7), 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+  cursor: pointer !important;
+  animation: pulse-repair 1.4s infinite ease-in-out;
+}
+
+@keyframes pulse-repair {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.05); }
 }
 
 .topbar {

@@ -88,6 +88,28 @@ const moneyScene = applyScenario("money-shift");
 assert(moneyScene.triggerDestroy, "money-shift scenario is catastrophic");
 approx(moneyScene.speedKmh, 110, 0.01, "money-shift sets 110 km/h");
 
+// Auto-clutch downshift breaking validation:
+const autoSim = new GearboxSimulation();
+autoSim.restartEngine();
+autoSim.attemptShift(5, { autoClutch: true });
+assert(autoSim.gear === 5, "auto-clutch shifts cleanly into 5th");
+assert(!autoSim.destroyed, "5th gear is safe");
+
+const safeDown = autoSim.attemptShift(4, { autoClutch: true });
+assert(safeDown.accepted && !safeDown.destroyed && autoSim.gear === 4, "safe downshift 5th→4th accepted without destruction");
+
+const moneyShiftResult = autoSim.attemptShift(1, { autoClutch: true });
+assert(moneyShiftResult.destroyed, "downshifting 4th→1st at speed triggers catastrophic Money Shift");
+assert(autoSim.destroyed, "gearbox is destroyed after money shift");
+assert(autoSim.destroyReason.includes("MONEY SHIFT"), "destroyReason identifies MONEY SHIFT");
+
+const revSim = new GearboxSimulation();
+revSim.restartEngine();
+revSim.attemptShift(3, { autoClutch: true });
+const revClash = revSim.attemptShift(-1, { autoClutch: true });
+assert(revClash.destroyed, "shifting into Reverse while moving forward triggers Reverse Clash");
+assert(revSim.destroyed, "gearbox is destroyed after reverse clash");
+
 console.log("4) Clutch dump stall");
 const dump = new GearboxSimulation();
 dump.restartEngine();
