@@ -260,6 +260,22 @@ export class UIManager {
     if (tabTable) tabTable.classList.toggle("on", status.scaleMode === "table");
     if (tabFloor) tabFloor.classList.toggle("on", status.scaleMode === "floor");
     if (btnRepo) btnRepo.classList.toggle("active", status.repositioning);
+    if (!status.active) this.hideArComponent();
+  }
+
+  showArComponent(info: ComponentInfo): void {
+    const card = document.getElementById("ar-inspect-card");
+    if (!card) return;
+    this.setText("ar-card-cat", info.category);
+    this.setText("ar-card-title", info.name);
+    this.setText("ar-card-desc", info.primaryFunction);
+    this.setText("ar-card-flow", info.powerFlowRole);
+    card.classList.remove("hidden");
+  }
+
+  hideArComponent(): void {
+    const card = document.getElementById("ar-inspect-card");
+    if (card) card.classList.add("hidden");
   }
 
   private setText(id: string, value: string): void {
@@ -490,6 +506,7 @@ export class UIManager {
     document.getElementById("btn-ar-reposition")?.addEventListener("click", () => this.cb.onArReposition());
     document.getElementById("btn-ar-rot-left")?.addEventListener("click", () => this.cb.onArRotate(-Math.PI / 12));
     document.getElementById("btn-ar-rot-right")?.addEventListener("click", () => this.cb.onArRotate(Math.PI / 12));
+    document.getElementById("btn-ar-card-close")?.addEventListener("click", () => this.hideArComponent());
 
     document.querySelectorAll("#ar-shifter button").forEach((btn) => {
       btn.addEventListener("click", (ev) => {

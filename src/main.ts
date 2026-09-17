@@ -67,10 +67,45 @@ ui.bind();
 ui.setArAvailable(true);
 sim.restartEngine();
 
-canvas.addEventListener("pointerdown", (ev) => {
-  if (ev.button !== 0 || ar.active) return;
-  const id = world.pick(ev.clientX, ev.clientY, canvas.getBoundingClientRect());
-  if (id) inspect(id);
+let pointerDownX = 0;
+let pointerDownY = 0;
+let pointerDownTime = 0;
+
+window.addEventListener("pointerdown", (ev) => {
+  if (ev.button !== 0) return;
+  pointerDownX = ev.clientX;
+  pointerDownY = ev.clientY;
+  pointerDownTime = performance.now();
+});
+
+window.addEventListener("pointerup", (ev) => {
+  if (ev.button !== 0) return;
+  const dx = ev.clientX - pointerDownX;
+  const dy = ev.clientY - pointerDownY;
+  const dt = performance.now() - pointerDownTime;
+  if (Math.hypot(dx, dy) > 12 || dt > 500) return;
+
+  const target = ev.target as HTMLElement | null;
+  if (
+    target &&
+    target.closest(
+      "button, select, input, .sheet, .modal, .ar-bottom-controls, .ar-topbar, .quick-shifter-bar, .ar-inspect-card, a",
+    )
+  ) {
+    return;
+  }
+
+  // If in AR mode and not yet placed or repositioning, let surface hit-test place the model
+  if (ar.active && (!ar.placed || ar.repositioning)) {
+    return;
+  }
+
+  const id = world.pick(ev.clientX, ev.clientY);
+  if (id) {
+    inspect(id);
+  } else if (ar.active) {
+    ui.hideArComponent();
+  }
 });
 
 window.addEventListener("resize", () => world.resize());
@@ -79,7 +114,15 @@ function inspect(id: string): void {
   const info = getComponent(id);
   if (!info) return;
   world.model.highlight(id);
-  ui.showComponent(info);
+  audio.unlock();
+  audio.shiftClick();
+
+  if (ar.active) {
+    ui.showArComponent(info);
+    sim.feedback = `AR: ${info.name} selected`;
+  } else {
+    ui.showComponent(info);
+  }
 }
 
 function handleShift(gear: GearId): void {

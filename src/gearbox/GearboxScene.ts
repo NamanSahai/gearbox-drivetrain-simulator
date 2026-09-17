@@ -118,11 +118,30 @@ export class GearboxScene {
     this.renderer.setSize(width, height, false);
   }
 
-  pick(clientX: number, clientY: number, rect: DOMRect): string | null {
-    this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-    this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-    this.raycaster.setFromCamera(this.pointer, this.camera);
+  pick(clientX: number, clientY: number, rect?: DOMRect): string | null {
+    const r = rect ?? this.renderer.domElement.getBoundingClientRect();
+    this.pointer.x = ((clientX - r.left) / r.width) * 2 - 1;
+    this.pointer.y = -((clientY - r.top) / r.height) * 2 + 1;
+
+    let activeCam: THREE.Camera = this.camera;
+    if (this.renderer.xr.isPresenting) {
+      const xrCam = this.renderer.xr.getCamera();
+      activeCam = xrCam.cameras.length > 0 ? xrCam.cameras[0] : xrCam;
+    }
+
+    this.raycaster.setFromCamera(this.pointer, activeCam);
     const hits = this.raycaster.intersectObjects(this.model.pickables, true);
+
+    // Prioritize internal components so the outer casing box never blocks picking:
+    const internalHit = hits.find((h) => {
+      const id = h.object.userData.componentId as string | undefined;
+      return id && id !== "casing";
+    });
+    if (internalHit) {
+      return internalHit.object.userData.componentId as string;
+    }
+
+    // Fall back to casing if only the casing was hit (outer edge, drain plug, sight glass):
     for (const hit of hits) {
       const id = hit.object.userData.componentId as string | undefined;
       if (id) return id;

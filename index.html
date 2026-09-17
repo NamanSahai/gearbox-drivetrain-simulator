@@ -272,6 +272,22 @@
           <button type="button" id="btn-ar-exit" class="ar-exit-btn">Exit AR</button>
         </header>
 
+        <!-- Floating AR Component Inspector Card (shown when tapping parts in AR) -->
+        <div class="ar-inspect-card hidden" id="ar-inspect-card">
+          <div class="ar-card-header">
+            <div class="ar-card-title-wrap">
+              <span class="ar-card-cat" id="ar-card-cat">Category</span>
+              <h3 class="ar-card-title" id="ar-card-title">Component</h3>
+            </div>
+            <button type="button" class="ar-card-close" id="btn-ar-card-close" title="Dismiss card">✕</button>
+          </div>
+          <p class="ar-card-desc" id="ar-card-desc"></p>
+          <div class="ar-card-flow-wrap">
+            <span class="ar-card-flow-label">Power Flow:</span>
+            <p class="ar-card-flow" id="ar-card-flow"></p>
+          </div>
+        </div>
+
         <div class="ar-bottom-controls">
           <div class="ar-mode-tabs" role="group" aria-label="Scale presets">
             <button type="button" id="btn-ar-table" class="ar-tab on">Tabletop (0.35x)</button>
