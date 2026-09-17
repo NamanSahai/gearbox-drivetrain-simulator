@@ -76,27 +76,45 @@ body {
 }
 
 .repair-btn {
-  position: fixed;
-  bottom: calc(140px + var(--safe-b));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 120;
-  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: rgba(239, 68, 68, 0.24) !important;
+  border: 1px solid var(--red) !important;
+  color: #fee2e2 !important;
+  font-weight: 700;
+  border-radius: 12px;
+  min-height: 40px;
+  padding: 0 12px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+  animation: pulse-repair 1.6s infinite ease-in-out;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.repair-btn:hover {
+  background: rgba(239, 68, 68, 0.45) !important;
   color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
-  border-radius: 99px !important;
-  padding: 12px 28px !important;
-  font-size: 15px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.04em !important;
-  box-shadow: 0 0 24px rgba(239, 68, 68, 0.7), 0 8px 24px rgba(0, 0, 0, 0.5) !important;
-  cursor: pointer !important;
-  animation: pulse-repair 1.4s infinite ease-in-out;
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.85);
+  transform: translateY(-1px);
+}
+
+.repair-btn:active {
+  transform: translateY(1px);
 }
 
 @keyframes pulse-repair {
-  0%, 100% { transform: translateX(-50%) scale(1); }
-  50% { transform: translateX(-50%) scale(1.05); }
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+    border-color: rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(239, 68, 68, 0.85);
+    border-color: #fca5a5;
+  }
 }
 
 .topbar {
@@ -1353,6 +1371,32 @@ code {
   color: #07090d;
   border-color: var(--cyan);
   box-shadow: 0 0 10px rgba(0, 229, 255, 0.4);
+}
+
+@media (max-width: 480px) {
+  .brand .eyebrow {
+    display: none;
+  }
+  .brand {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+  .brand h1 {
+    font-size: 13px;
+  }
+  .top-actions {
+    gap: 4px;
+  }
+  .icon-btn {
+    padding: 0 8px;
+    font-size: 11px;
+    min-height: 36px;
+  }
+  .repair-btn {
+    min-height: 36px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
+  }
 }
 
 @media (min-width: 820px) {

@@ -343,46 +343,140 @@ export class GearboxSimulation {
 
     // Auto-clutch mode for mobile/touch or educational quick-shifting:
     if (options?.autoClutch) {
-      const isUpshift = next > this.gear;
-      this.gear = next;
       this.grindActive = false;
       this.grindTimer = 0;
-      this.stalled = false;
-      this.engineRunning = true;
-      this.clutchPedal = 0; // locked in drive
+
+      // If recovering from stall via 1st gear or Neutral:
+      if (this.stalled && (next === 0 || next === 1)) {
+        this.restartEngine();
+      }
 
       if (next === 0) {
+        this.gear = 0;
+        this.clutchPedal = 1;
         this.engineRpm = IDLE_RPM;
-        this.speedKmh = Math.max(0, this.speedKmh * 0.7);
-        this.feedback = "Neutral — Output shaft decoupled; mainshaft freewheeling";
-      } else if (next === 1) {
-        this.speedKmh = isUpshift || this.speedKmh <= 0 ? 18 : Math.min(this.speedKmh, 28);
-        this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, 1));
-        this.feedback = "1st Gear Engaged (3.60:1) — High torque multiplication for launch";
+        this.inputRpm = IDLE_RPM;
+        this.outputRpm = outputRpmFromSpeed(this.speedKmh);
+        this.feedback = "Neutral — Output shaft decoupled; vehicle freewheeling";
+        this.syncShafts();
+        return {
+          accepted: true,
+          grind: false,
+          destroyed: false,
+          destroyReason: "",
+          gear: 0,
+          feedback: this.feedback,
+        };
+      }
+
+      // Standstill / launch check (speed < 4 km/h or currently in Neutral):
+      // In real life, a vehicle cannot launch from a dead stop in tall gears (2nd-5th) — engine bogs and stalls!
+      if (Math.abs(this.speedKmh) < 4 || this.gear === 0) {
+        if (next === 1) {
+          this.gear = 1;
+          this.engineRunning = true;
+          this.stalled = false;
+          this.clutchPedal = 0;
+          this.prevClutch = 0;
+          if (this.speedKmh <= 0) this.speedKmh = 1.0;
+          this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, 1));
+          this.feedback = "1st Gear Engaged (3.60:1) — High torque launch. Accelerating (0–25 km/h); upshift to 2nd at ~3,000 RPM";
+          this.outputRpm = outputRpmFromSpeed(this.speedKmh);
+          this.syncShafts();
+          return {
+            accepted: true,
+            grind: false,
+            destroyed: false,
+            destroyReason: "",
+            gear: 1,
+            feedback: this.feedback,
+          };
+        }
+
+        if (next === -1) {
+          this.gear = -1;
+          this.engineRunning = true;
+          this.stalled = false;
+          this.clutchPedal = 0;
+          this.prevClutch = 0;
+          if (this.speedKmh >= 0) this.speedKmh = -1.0;
+          this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, -1));
+          this.feedback = "Reverse Gear Engaged (3.40:1) — Reverse idler gear inverts shaft rotation";
+          this.outputRpm = outputRpmFromSpeed(this.speedKmh);
+          this.syncShafts();
+          return {
+            accepted: true,
+            grind: false,
+            destroyed: false,
+            destroyReason: "",
+            gear: -1,
+            feedback: this.feedback,
+          };
+        }
+
+        // Attempting to launch directly from rest in 2nd, 3rd, 4th, or 5th gear:
+        this.stall(`ENGINE STALLED — ${next}th gear is too tall (${gearRatio(next).toFixed(2)}:1) to launch from a stop! Start in 1st gear.`);
+        this.gear = next;
+        this.speedKmh = 0;
+        this.engineRpm = 0;
+        this.inputRpm = 0;
+        this.outputRpm = 0;
+        this.syncShafts();
+        return {
+          accepted: true,
+          grind: false,
+          destroyed: false,
+          destroyReason: "",
+          gear: next,
+          feedback: this.feedback,
+        };
+      }
+
+      // Moving forward at speed (speed >= 4 km/h):
+      const forcedRpm = forcedEngineRpm(this.speedKmh, next);
+      if (forcedRpm < 550) {
+        // Gear is too tall for current road speed — engine bogs below idle and stalls
+        this.stall(`ENGINE STALLED — ${next}th gear is too tall for ${Math.round(this.speedKmh)} km/h (engine bogged below 550 RPM). Upshift sequentially: 1→2→3→4→5`);
+        this.gear = next;
+        this.engineRpm = 0;
+        this.inputRpm = 0;
+        this.outputRpm = outputRpmFromSpeed(this.speedKmh);
+        this.syncShafts();
+        return {
+          accepted: true,
+          grind: false,
+          destroyed: false,
+          destroyReason: "",
+          gear: next,
+          feedback: this.feedback,
+        };
+      }
+
+      // Valid moving shift: speed is continuous, gear engages cleanly!
+      this.gear = next;
+      this.stalled = false;
+      this.engineRunning = true;
+      this.clutchPedal = 0;
+      this.prevClutch = 0;
+      this.engineRpm = Math.max(IDLE_RPM, forcedRpm);
+      this.inputRpm = this.engineRpm;
+      this.outputRpm = outputRpmFromSpeed(this.speedKmh);
+      this.syncShafts();
+
+      if (next === 1) {
+        this.feedback = "1st Gear Engaged (3.60:1) — Accelerating (0–25 km/h). Upshift to 2nd at ~3,000 RPM";
       } else if (next === 2) {
-        this.speedKmh = isUpshift || this.speedKmh <= 0 ? 34 : Math.min(this.speedKmh, 48);
-        this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, 2));
-        this.feedback = "2nd Gear Engaged (2.10:1) — Intermediate reduction for acceleration";
+        this.feedback = "2nd Gear Engaged (2.10:1) — Accelerating (25–48 km/h). Upshift to 3rd at ~3,200 RPM";
       } else if (next === 3) {
-        this.speedKmh = isUpshift || this.speedKmh <= 0 ? 52 : Math.min(this.speedKmh, 68);
-        this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, 3));
-        this.feedback = "3rd Gear Engaged (1.40:1) — Mid-range ratio for city cruising";
+        this.feedback = "3rd Gear Engaged (1.40:1) — Accelerating (48–72 km/h). Upshift to 4th at ~3,200 RPM";
       } else if (next === 4) {
-        this.speedKmh = isUpshift || this.speedKmh <= 0 ? 75 : Math.min(this.speedKmh, 90);
-        this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, 4));
-        this.feedback = "4th Gear Direct Drive (1.00:1) — Input locks to output shaft; 100% efficient";
+        this.feedback = "4th Gear Direct Drive (1.00:1) — Accelerating (72–96 km/h). Upshift to 5th at ~3,100 RPM";
       } else if (next === 5) {
-        this.speedKmh = isUpshift || this.speedKmh <= 0 ? 96 : Math.max(this.speedKmh, 96);
-        this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, 5));
-        this.feedback = "5th Gear Overdrive (0.78:1) — Output spins faster than engine for highway economy";
+        this.feedback = "5th Gear Overdrive (0.78:1) — Highway cruising (96–120+ km/h). Output spins 28% faster than engine";
       } else if (next === -1) {
-        this.speedKmh = -16;
-        this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, -1));
         this.feedback = "Reverse Gear Engaged (3.40:1) — Reverse idler gear inverts shaft rotation";
       }
 
-      this.outputRpm = outputRpmFromSpeed(this.speedKmh);
-      this.syncShafts();
       return {
         accepted: true,
         grind: false,
@@ -594,13 +688,50 @@ export class GearboxSimulation {
       : 0;
 
     if (locked) {
-      const wheelForce = (engineTorque * ratio * FINAL_DRIVE) / TIRE_RADIUS;
-      const accel = this.longitudinalAccel(wheelForce);
-      this.speedKmh = Math.max(
-        this.gear === -1 ? -180 : 0,
-        Math.min(this.gear === -1 ? 0 : 220, this.speedKmh + accel * step * 3.6),
-      );
-      this.engineRpm = Math.max(0, forcedEngineRpm(this.speedKmh, this.gear));
+      if (this.throttle > 0) {
+        const wheelForce = (engineTorque * ratio * FINAL_DRIVE) / TIRE_RADIUS;
+        const accel = this.longitudinalAccel(wheelForce);
+        this.speedKmh = Math.max(
+          this.gear === -1 ? -180 : 0,
+          Math.min(this.gear === -1 ? 0 : 220, this.speedKmh + accel * step * 3.6),
+        );
+        this.engineRpm = Math.max(0, forcedEngineRpm(this.speedKmh, this.gear));
+      } else if (this.brake > 0.05) {
+        this.decayVehicle(step, 1 + this.brake * 5);
+        this.engineRpm = Math.max(0, forcedEngineRpm(this.speedKmh, this.gear));
+      } else {
+        // Natural automatic drive towards each gear's target speed:
+        const targetSpeed = this.gear === -1 ? -16 : (
+          this.gear === 1 ? 25 :
+          this.gear === 2 ? 48 :
+          this.gear === 3 ? 72 :
+          this.gear === 4 ? 96 :
+          this.gear === 5 ? 120 : 0
+        );
+        const accelRate = this.gear === -1 ? 6.0 : (
+          this.gear === 1 ? 9.0 :
+          this.gear === 2 ? 8.0 :
+          this.gear === 3 ? 7.0 :
+          this.gear === 4 ? 6.0 :
+          this.gear === 5 ? 5.0 : 0
+        );
+
+        if (this.gear > 0) {
+          if (this.speedKmh < targetSpeed) {
+            this.speedKmh = Math.min(targetSpeed, this.speedKmh + accelRate * step);
+          } else if (this.speedKmh > targetSpeed) {
+            // Engine braking when downshifted from higher speed:
+            this.speedKmh = Math.max(targetSpeed, this.speedKmh - 6.0 * step);
+          }
+          this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, this.gear));
+        } else if (this.gear === -1) {
+          if (this.speedKmh > targetSpeed) {
+            this.speedKmh = Math.max(targetSpeed, this.speedKmh - accelRate * step);
+          }
+          this.engineRpm = Math.max(IDLE_RPM, forcedEngineRpm(this.speedKmh, -1));
+        }
+      }
+
       if (this.engineRpm < IDLE_RPM * 0.85 && this.throttle > 0.05) {
         this.engineRpm = Math.max(this.engineRpm, IDLE_RPM * 0.7);
       }
@@ -663,7 +794,7 @@ export class GearboxSimulation {
     } else if (slipping && this.gear !== 0) {
       this.feedback = "Bite point reached — friction is transferring torque";
     } else if (this.engineRpm >= 2800 && this.engineRpm <= 3600 && this.gear >= 1 && this.gear <= 4 && locked) {
-      this.feedback = "Optimal upshift zone";
+      this.feedback = `Optimal upshift zone (${Math.round(this.engineRpm)} RPM) — Shift to ${this.gear + 1}`;
     }
 
     if (this.clutchTemp > 280) {

@@ -28,11 +28,14 @@
           </div>
         </div>
         <div class="top-actions">
-          <button type="button" id="btn-mute" class="icon-btn" aria-pressed="false" title="Mute audio">
-            Sound
+          <button type="button" id="btn-repair" class="icon-btn repair-btn hidden" title="Repair transmission">
+            Repair
           </button>
           <button type="button" id="btn-ar" class="icon-btn" title="View gearbox in AR">
             AR View
+          </button>
+          <button type="button" id="btn-mute" class="icon-btn" aria-pressed="false" title="Mute audio">
+            Sound
           </button>
           <button type="button" id="btn-qr" class="icon-btn desktop-only">Open on Mobile</button>
         </div>
@@ -74,7 +77,6 @@
       </div>
 
       <button type="button" id="btn-restart" class="restart-btn hidden">Restart Engine</button>
-      <button type="button" id="btn-repair" class="repair-btn hidden">Repair Transmission</button>
 
       <nav class="dock" aria-label="Primary Navigation">
         <button type="button" data-panel="inspect" class="on">Inspect (18)</button>
@@ -270,6 +272,7 @@
             <span class="ar-pulse-dot"></span>
             <span id="ar-hint">Aim at table or floor to detect surface</span>
           </div>
+          <button type="button" id="btn-ar-repair" class="ar-action-btn repair-btn hidden" title="Repair transmission in AR">Repair</button>
           <button type="button" id="btn-ar-exit" class="ar-exit-btn">Exit AR</button>
         </header>
 

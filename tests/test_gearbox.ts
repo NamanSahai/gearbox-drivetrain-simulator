@@ -88,24 +88,70 @@ const moneyScene = applyScenario("money-shift");
 assert(moneyScene.triggerDestroy, "money-shift scenario is catastrophic");
 approx(moneyScene.speedKmh, 110, 0.01, "money-shift sets 110 km/h");
 
-// Auto-clutch downshift breaking validation:
+// Real-world sequential progression and anti-stall verification:
+// 1) Test that picking up directly from 5th gear at 0 km/h stalls the engine:
+const direct5Sim = new GearboxSimulation();
+direct5Sim.restartEngine();
+const direct5Result = direct5Sim.attemptShift(5, { autoClutch: true });
+assert(direct5Sim.stalled, "picking up directly from 5th gear at 0 km/h stalls the engine");
+assert(direct5Sim.speedKmh === 0, "speed remains 0 km/h when stalled in 5th from standstill");
+assert(direct5Result.feedback.includes("ENGINE STALLED"), "feedback explains tall gear stall");
+
+// 2) Going sequentially 1 -> 2 -> 3 -> 4 -> 5:
 const autoSim = new GearboxSimulation();
 autoSim.restartEngine();
-autoSim.attemptShift(5, { autoClutch: true });
-assert(autoSim.gear === 5, "auto-clutch shifts cleanly into 5th");
-assert(!autoSim.destroyed, "5th gear is safe");
+autoSim.attemptShift(1, { autoClutch: true });
+assert(autoSim.gear === 1 && !autoSim.stalled, "1st gear launches cleanly from standstill");
 
+// Advance 1st gear to ~25 km/h:
+for (let i = 0; i < 180; i++) autoSim.update(1 / 60);
+approx(autoSim.speedKmh, 25, 0.5, "1st gear reaches ~25 km/h");
+assert(autoSim.engineRpm > 2800, "1st gear reaches upshift RPM zone");
+
+// Sequential upshift 1 -> 2: road speed remains continuous (no teleportation)
+const speedBefore2 = autoSim.speedKmh;
+autoSim.attemptShift(2, { autoClutch: true });
+approx(autoSim.speedKmh, speedBefore2, 0.01, "road speed does not jump upon shifting 1→2");
+approx(autoSim.engineRpm, forcedEngineRpm(autoSim.speedKmh, 2), 0.1, "engine RPM drops to match 2nd gear ratio");
+
+// Advance 2nd gear to ~48 km/h:
+for (let i = 0; i < 180; i++) autoSim.update(1 / 60);
+approx(autoSim.speedKmh, 48, 0.5, "2nd gear reaches ~48 km/h");
+
+// Sequential upshift 2 -> 3:
+autoSim.attemptShift(3, { autoClutch: true });
+for (let i = 0; i < 220; i++) autoSim.update(1 / 60);
+approx(autoSim.speedKmh, 72, 0.5, "3rd gear reaches ~72 km/h");
+
+// Sequential upshift 3 -> 4:
+autoSim.attemptShift(4, { autoClutch: true });
+for (let i = 0; i < 240; i++) autoSim.update(1 / 60);
+approx(autoSim.speedKmh, 96, 0.5, "4th gear reaches ~96 km/h");
+
+// Sequential upshift 4 -> 5:
+autoSim.attemptShift(5, { autoClutch: true });
+for (let i = 0; i < 300; i++) autoSim.update(1 / 60);
+approx(autoSim.speedKmh, 120, 0.5, "5th gear reaches highway cruising speed ~120 km/h");
+assert(autoSim.gear === 5 && !autoSim.destroyed, "5th gear reached sequentially without destruction");
+
+// 3) Safe downshift 5th -> 4th at highway speed:
 const safeDown = autoSim.attemptShift(4, { autoClutch: true });
 assert(safeDown.accepted && !safeDown.destroyed && autoSim.gear === 4, "safe downshift 5th→4th accepted without destruction");
 
+// 4) Severe over-rev downshift 4th -> 1st at high speed triggers Money Shift:
 const moneyShiftResult = autoSim.attemptShift(1, { autoClutch: true });
 assert(moneyShiftResult.destroyed, "downshifting 4th→1st at speed triggers catastrophic Money Shift");
 assert(autoSim.destroyed, "gearbox is destroyed after money shift");
 assert(autoSim.destroyReason.includes("MONEY SHIFT"), "destroyReason identifies MONEY SHIFT");
 
+// 5) Forward speed reverse clash:
 const revSim = new GearboxSimulation();
 revSim.restartEngine();
-revSim.attemptShift(3, { autoClutch: true });
+revSim.attemptShift(1, { autoClutch: true });
+for (let i = 0; i < 120; i++) revSim.update(1 / 60);
+revSim.attemptShift(2, { autoClutch: true });
+for (let i = 0; i < 120; i++) revSim.update(1 / 60);
+assert(revSim.speedKmh >= 25, "car is traveling forward at speed");
 const revClash = revSim.attemptShift(-1, { autoClutch: true });
 assert(revClash.destroyed, "shifting into Reverse while moving forward triggers Reverse Clash");
 assert(revSim.destroyed, "gearbox is destroyed after reverse clash");
@@ -240,6 +286,8 @@ assert(html.includes('id="ar-card-function"'), "HTML contains ar-card-function")
 assert(html.includes('id="ar-card-flow"'), "HTML contains ar-card-flow");
 assert(html.includes('id="ar-card-note"'), "HTML contains ar-card-note");
 assert(typeof ArSessionController.hasCameraSupport === "function", "ArSessionController exposes hasCameraSupport method");
+assert(html.includes('id="btn-repair"') && html.includes('class="icon-btn repair-btn hidden"'), "HTML contains compact btn-repair in top bar");
+assert(html.includes('id="btn-ar-repair"'), "HTML contains btn-ar-repair in AR overlay");
 
 if (failed > 0) {
   throw new Error(`${failed} failed, ${passed} passed`);

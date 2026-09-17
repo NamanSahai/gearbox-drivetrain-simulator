@@ -175,6 +175,7 @@ export class UIManager {
     const feedback = document.getElementById("feedback");
     const fill = document.getElementById("clutch-fill");
     const repair = document.getElementById("btn-repair");
+    const arRepair = document.getElementById("btn-ar-repair");
     if (gear) gear.textContent = gearLabel(snap.gear);
     if (kmh) kmh.textContent = Math.round(Math.abs(snap.speedKmh)).toString();
     if (mph) mph.textContent = `${Math.round(Math.abs(snap.speedMph))} mph`;
@@ -182,6 +183,7 @@ export class UIManager {
     if (needle) needle.style.transform = `translateX(${(snap.engineRpm / TACH_MAX_RPM) * 86}px)`;
     if (fill) fill.style.height = `${snap.clutchPedal * 100}%`;
     if (repair) repair.classList.toggle("hidden", !snap.destroyed);
+    if (arRepair) arRepair.classList.toggle("hidden", !snap.destroyed);
     if (feedback) {
       feedback.textContent = snap.feedback;
       feedback.classList.toggle("danger", snap.destroyed || snap.stalled || snap.grindActive);
@@ -523,6 +525,7 @@ export class UIManager {
   private bindChrome(): void {
     document.getElementById("btn-restart")?.addEventListener("click", () => this.cb.onRestart());
     document.getElementById("btn-repair")?.addEventListener("click", () => this.cb.onRepair());
+    document.getElementById("btn-ar-repair")?.addEventListener("click", () => this.cb.onRepair());
     document.getElementById("btn-mute")?.addEventListener("click", (ev) => {
       const muted = this.cb.onMute();
       const btn = ev.currentTarget as HTMLButtonElement;
