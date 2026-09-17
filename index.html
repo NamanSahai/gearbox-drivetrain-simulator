@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no"
+    />
+    <meta name="theme-color" content="#07090d" />
+    <meta
+      name="description"
+      content="Zero-install 3D educational manual gearbox and drivetrain simulator."
+    />
+    <title>Manual Gearbox & Drivetrain Simulator</title>
+    <link rel="stylesheet" href="/src/ui/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="viewport" aria-label="3D gearbox viewport"></canvas>
+
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <p class="eyebrow">3-shaft constant-mesh</p>
+            <h1>Gearbox Lab</h1>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button type="button" id="btn-mute" class="icon-btn" aria-pressed="false" title="Mute audio">
+            Sound
+          </button>
+          <button type="button" id="btn-ar" class="icon-btn" title="View gearbox in AR">
+            AR View
+          </button>
+          <button type="button" id="btn-qr" class="icon-btn desktop-only">Open on Mobile</button>
+        </div>
+      </header>
+
+      <aside class="hud" id="hud" aria-live="polite">
+        <div class="gear-pill" id="hud-gear">N</div>
+        <div class="hud-readouts">
+          <div>
+            <span class="label">Speed</span>
+            <strong id="hud-kmh">0</strong><small>km/h</small>
+            <span id="hud-mph" class="mph">0 mph</span>
+          </div>
+          <div class="tach-wrap">
+            <span class="label">Tach</span>
+            <strong id="hud-rpm">0</strong><small>RPM</small>
+            <div class="tach" aria-hidden="true">
+              <div class="tach-bands"></div>
+              <div class="tach-needle" id="tach-needle"></div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <p class="feedback" id="feedback">Manual Gearbox Ready — Tap any gear to engage</p>
+
+      <!-- Persistent Touch-Friendly Quick-Shifter Bar for Mobile & Desktop -->
+      <div class="quick-shifter-bar" id="quick-shifter" role="group" aria-label="Gear selector">
+        <span class="shifter-title">GEAR</span>
+        <div class="shifter" id="shifter">
+          <button type="button" data-gear="-1" class="gear-r" title="Reverse Gear (3.40:1)">R</button>
+          <button type="button" data-gear="1" title="1st Gear (3.60:1)">1</button>
+          <button type="button" data-gear="2" title="2nd Gear (2.10:1)">2</button>
+          <button type="button" data-gear="3" title="3rd Gear (1.40:1)">3</button>
+          <button type="button" data-gear="4" title="4th Direct (1.00:1)">4</button>
+          <button type="button" data-gear="5" title="5th Overdrive (0.78:1)">5</button>
+          <button type="button" data-gear="0" class="neutral on" title="Neutral">N</button>
+        </div>
+      </div>
+
+      <button type="button" id="btn-restart" class="restart-btn hidden">Restart Engine</button>
+      <button type="button" id="btn-repair" class="repair-btn hidden">Repair Transmission</button>
+
+      <nav class="dock" aria-label="Primary Navigation">
+        <button type="button" data-panel="inspect" class="on">Inspect (18)</button>
+        <button type="button" data-panel="ratios">Gear Ratios</button>
+        <button type="button" data-panel="views">View & Explode</button>
+      </nav>
+
+      <section class="sheet" id="sheet-inspect" hidden>
+        <header class="sheet-header">
+          <div class="sheet-title-wrap">
+            <span class="sheet-badge">Inspector</span>
+            <h2 id="sheet-inspect-heading">Component Inspector</h2>
+          </div>
+          <div class="sheet-header-actions">
+            <button type="button" class="sheet-icon-btn" id="btn-minimize-inspect" title="Minimize / Expand" aria-label="Minimize / Expand">
+              <span id="inspect-min-label">Minimize</span>
+            </button>
+            <button type="button" class="close-sheet" data-close title="Close panel" aria-label="Close">✕</button>
+          </div>
+        </header>
+        <div class="sheet-body inspect-grid">
+          <!-- Mobile-first Component Selector: Prev / Native Dropdown / Next -->
+          <div class="component-picker-row">
+            <button type="button" id="btn-prev-comp" class="comp-arrow-btn" title="Previous component" aria-label="Previous">◀</button>
+            <div class="select-container">
+              <select id="component-select" class="component-select" aria-label="Choose component to inspect"></select>
+            </div>
+            <button type="button" id="btn-next-comp" class="comp-arrow-btn" title="Next component" aria-label="Next">▶</button>
+          </div>
+
+          <!-- Hidden list kept for backward compatibility and test stability -->
+          <ol id="component-list" class="component-list hidden"></ol>
+
+          <!-- Component Description Card: Clear, wrapped, vertical, readable -->
+          <article class="component-card" id="component-card">
+            <div class="card-meta">
+              <span class="eyebrow" id="card-category">Mechanical Category</span>
+              <span class="comp-index-badge" id="comp-index-badge">1 / 18</span>
+            </div>
+            <h3 id="card-name">Select a component</h3>
+
+            <div class="card-desc-box">
+              <span class="card-section-label">Primary Function</span>
+              <p id="card-function" class="card-function"></p>
+            </div>
+
+            <div class="card-specs" id="card-specs">
+              <div class="spec-block">
+                <span class="spec-label">Power Flow</span>
+                <p id="card-flow" class="spec-value"></p>
+              </div>
+              <div class="spec-block">
+                <span class="spec-label">Engineering Note</span>
+                <p id="card-note" class="spec-value"></p>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Educational Gear Ratios & Power Flow Sheet -->
+      <section class="sheet" id="sheet-ratios" hidden>
+        <header class="sheet-header">
+          <div class="sheet-title-wrap">
+            <span class="sheet-badge">Kinematics</span>
+            <h2>Gear Ratios & Power Flow</h2>
+          </div>
+          <button type="button" class="close-sheet" data-close title="Close panel">✕</button>
+        </header>
+        <div class="sheet-body ratios-body">
+          <article class="ratios-card">
+            <h3>Manual Transmission Reduction Ratios</h3>
+            <div class="table-responsive">
+              <table class="ratios-table">
+                <thead>
+                  <tr>
+                    <th>Gear</th>
+                    <th>Ratio</th>
+                    <th>Role & Mechanical Path</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong class="gear-badge">1st</strong></td>
+                    <td><code>3.60:1</code></td>
+                    <td>High reduction for launch torque; input pinion → countershaft → 1st main gear</td>
+                  </tr>
+                  <tr>
+                    <td><strong class="gear-badge">2nd</strong></td>
+                    <td><code>2.10:1</code></td>
+                    <td>Intermediate acceleration; 1/2 synchro slides rearward</td>
+                  </tr>
+                  <tr>
+                    <td><strong class="gear-badge">3rd</strong></td>
+                    <td><code>1.40:1</code></td>
+                    <td>Flexible city cruising ratio; 3/4 synchro slides forward</td>
+                  </tr>
+                  <tr>
+                    <td><strong class="gear-badge">4th</strong></td>
+                    <td><code>1.00:1</code></td>
+                    <td>Direct Drive: 3/4 synchro locks input to output shaft; countershaft unloaded (100% efficient)</td>
+                  </tr>
+                  <tr>
+                    <td><strong class="gear-badge">5th</strong></td>
+                    <td><code>0.78:1</code></td>
+                    <td>Overdrive: output turns 28% faster than engine for low highway RPM and fuel economy</td>
+                  </tr>
+                  <tr>
+                    <td><strong class="gear-badge r">Rev</strong></td>
+                    <td><code>3.40:1</code></td>
+                    <td>Reverse: intermediate idler gear reverses output shaft rotation</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="drivetrain-specs">
+              <div class="spec-tile">
+                <span class="spec-k">Differential Final Drive</span>
+                <span class="spec-v">3.90:1 reduction (crown & pinion)</span>
+              </div>
+              <div class="spec-tile">
+                <span class="spec-k">Tire Dimension</span>
+                <span class="spec-v">205/55R16 (Radius: 0.31 m)</span>
+              </div>
+              <div class="spec-tile">
+                <span class="spec-k">Architecture</span>
+                <span class="spec-v">3-Shaft Constant Mesh with Synchro Cones</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- View & Explode Sheet -->
+      <section class="sheet" id="sheet-views" hidden>
+        <header class="sheet-header">
+          <div class="sheet-title-wrap">
+            <span class="sheet-badge">Display Options</span>
+            <h2>Casing & Exploded View</h2>
+          </div>
+          <button type="button" class="close-sheet" data-close title="Close panel">✕</button>
+        </header>
+        <div class="sheet-body views-body">
+          <article class="views-card">
+            <h3>Transmission Casing Mode</h3>
+            <p>Control the aluminum housing transparency to reveal internal shafts, gears, and synchros:</p>
+            <div class="seg" id="casing-modes">
+              <button type="button" data-mode="cutaway" class="on">Cutaway</button>
+              <button type="button" data-mode="solid">Solid</button>
+              <button type="button" data-mode="wireframe">Wireframe</button>
+              <button type="button" data-mode="hidden">Hidden</button>
+            </div>
+          </article>
+
+          <article class="views-card">
+            <h3>Exploded Component View</h3>
+            <p>Spread gears, shafts, and clutch assemblies apart along their axes for internal inspection:</p>
+            <div class="row explode-row">
+              <button type="button" id="btn-explode" class="primary-btn">Toggle Explode</button>
+              <label class="slider-label">
+                <span>Spread Distance</span>
+                <input type="range" id="explode-slider" min="0" max="100" value="0" />
+              </label>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Hidden compatibility sections kept for DOM queries -->
+      <section class="sheet hidden" id="sheet-whatif" hidden>
+        <div class="scenario-list" id="scenario-list"></div>
+      </section>
+      <section class="sheet hidden" id="sheet-more" hidden>
+        <button type="button" id="btn-ar-sheet">Start AR</button>
+        <div id="lesson-btns"></div>
+      </section>
+
+      <aside class="lesson-card hidden" id="lesson-card">
+        <p class="eyebrow" id="lesson-kicker">Lesson</p>
+        <h3 id="lesson-title"></h3>
+        <p id="lesson-body"></p>
+        <div class="row">
+          <button type="button" id="lesson-next">Next step</button>
+          <button type="button" id="lesson-exit" class="ghost">Exit</button>
+        </div>
+      </aside>
+
+      <!-- AR Live Overlay (active during WebXR immersive-ar) -->
+      <div class="ar-overlay hidden" id="ar-overlay">
+        <header class="ar-topbar">
+          <div class="ar-status-badge">
+            <span class="ar-pulse-dot"></span>
+            <span id="ar-hint">Aim at table or floor to detect surface</span>
+          </div>
+          <button type="button" id="btn-ar-exit" class="ar-exit-btn">Exit AR</button>
+        </header>
+
+        <div class="ar-bottom-controls">
+          <div class="ar-mode-tabs" role="group" aria-label="Scale presets">
+            <button type="button" id="btn-ar-table" class="ar-tab on">Tabletop (0.35x)</button>
+            <button type="button" id="btn-ar-floor" class="ar-tab">Floor (1:1 Life-Size)</button>
+          </div>
+
+          <div class="ar-action-row">
+            <button type="button" id="btn-ar-reposition" class="ar-action-btn">
+              <span>✛</span> Reposition
+            </button>
+            <div class="ar-rot-group">
+              <button type="button" id="btn-ar-rot-left" class="ar-action-btn" title="Rotate counter-clockwise">↺ 15°</button>
+              <button type="button" id="btn-ar-rot-right" class="ar-action-btn" title="Rotate clockwise">↻ 15°</button>
+            </div>
+          </div>
+
+          <div class="ar-shifter" id="ar-shifter" role="group" aria-label="AR Gearbox selector">
+            <button type="button" data-ar-gear="-1">R</button>
+            <button type="button" data-ar-gear="1">1</button>
+            <button type="button" data-ar-gear="2">2</button>
+            <button type="button" data-ar-gear="3">3</button>
+            <button type="button" data-ar-gear="4">4</button>
+            <button type="button" data-ar-gear="5">5</button>
+            <button type="button" data-ar-gear="0" class="neutral on">N</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- High-Contrast QR Modal for Mobile AR & Local HTTPS -->
+      <div class="modal hidden" id="qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-title">
+        <div class="modal-card">
+          <h2 id="qr-title">AR on Mobile (Floor & Table Tracking)</h2>
+          <p class="modal-sub">Scan with your phone camera or open this HTTPS link in your mobile browser:</p>
+          <div class="qr-canvas-card">
+            <canvas id="qr-canvas" width="240" height="240"></canvas>
+          </div>
+          <p class="url" id="qr-url"></p>
+          <div class="ar-instructions">
+            <p><strong>iPhone / iPad (Safari):</strong> Open link or tap <em>Apple Quick Look (USDZ)</em> below to launch native iOS ARKit surface tracking on your floor or table!</p>
+            <p><strong>Android (Chrome):</strong> Open link above, tap <em>AR View</em> → aim camera at table or floor to detect surface → tap to place with live running gears!</p>
+            <p class="ssl-tip"><em>Tip: When opening the local link on your phone, tap <strong>Advanced → Proceed to 10.21.0.127 (unsafe)</strong> to accept the local HTTPS certificate.</em></p>
+          </div>
+          <div class="row modal-buttons">
+            <button type="button" id="btn-copy-url">Copy HTTPS URL</button>
+            <button type="button" id="btn-modal-usdz" class="primary-btn">Apple Quick Look (USDZ)</button>
+            <button type="button" id="btn-close-qr" class="ghost">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
