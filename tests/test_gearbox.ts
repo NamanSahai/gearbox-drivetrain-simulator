@@ -201,6 +201,24 @@ rebuilt.destroy("test");
 rebuilt.repair();
 assert(!rebuilt.destroyed && rebuilt.gear === 0 && rebuilt.engineRpm === 800, "repair idles in Neutral");
 
+console.log("7) AR Component Inspector & markup validation");
+import fs from "fs";
+import path from "path";
+import { ArSessionController } from "../src/gearbox/ArSessionController";
+
+const html = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf-8");
+assert(html.includes('id="ar-camera-feed"'), "HTML contains ar-camera-feed video element");
+assert(html.includes('id="ar-inspect-sheet"'), "HTML contains ar-inspect-sheet element");
+assert(html.includes('id="ar-comp-index-badge"'), "HTML contains ar-comp-index-badge");
+assert(html.includes('id="ar-component-select"'), "HTML contains ar-component-select");
+assert(html.includes('id="btn-ar-prev-comp"'), "HTML contains btn-ar-prev-comp");
+assert(html.includes('id="btn-ar-next-comp"'), "HTML contains btn-ar-next-comp");
+assert(html.includes('id="btn-ar-minimize-inspect"'), "HTML contains btn-ar-minimize-inspect");
+assert(html.includes('id="ar-card-function"'), "HTML contains ar-card-function");
+assert(html.includes('id="ar-card-flow"'), "HTML contains ar-card-flow");
+assert(html.includes('id="ar-card-note"'), "HTML contains ar-card-note");
+assert(typeof ArSessionController.hasCameraSupport === "function", "ArSessionController exposes hasCameraSupport method");
+
 if (failed > 0) {
   throw new Error(`${failed} failed, ${passed} passed`);
 }

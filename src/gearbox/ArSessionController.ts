@@ -28,6 +28,8 @@ export class ArSessionController {
   private reticle: THREE.Group | null = null;
   private shadowPlane: THREE.Mesh | null = null;
   private arLight: THREE.DirectionalLight | null = null;
+  private cameraStream: MediaStream | null = null;
+  private _isCameraMode = false;
 
   private _active = false;
   private _placed = false;
@@ -59,6 +61,10 @@ export class ArSessionController {
     return this._scaleMode;
   }
 
+  get isCameraMode(): boolean {
+    return this._isCameraMode;
+  }
+
   static async isSupported(): Promise<boolean> {
     if (typeof navigator === "undefined" || !("xr" in navigator) || !navigator.xr) {
       return false;
@@ -70,11 +76,39 @@ export class ArSessionController {
     }
   }
 
+  static hasCameraSupport(): boolean {
+    return (
+      typeof navigator !== "undefined" &&
+      !!navigator.mediaDevices &&
+      typeof navigator.mediaDevices.getUserMedia === "function"
+    );
+  }
+
   async start(): Promise<boolean> {
     if (this._active) return true;
+
+    // 1. If WebXR immersive-ar is natively supported, launch WebXR session
+    const xrSupported = await ArSessionController.isSupported();
+    if (xrSupported) {
+      try {
+        return await this.startXRSession();
+      } catch (err) {
+        console.warn("WebXR start failed, falling back to Web Camera AR:", err);
+      }
+    }
+
+    // 2. Fall back to Universal Web Camera AR mode (iPhone Safari & mobile web)
+    if (ArSessionController.hasCameraSupport()) {
+      return await this.startCameraAr();
+    }
+
+    throw new Error("Neither WebXR nor camera video access is supported on this browser.");
+  }
+
+  async startXRSession(): Promise<boolean> {
     const xr = navigator.xr;
     if (!xr) {
-      throw new Error("WebXR is not available in this browser. Use Chrome on Android or WebXR Viewer on iOS.");
+      throw new Error("WebXR is not available in this browser.");
     }
     const supported = await xr.isSessionSupported("immersive-ar");
     if (!supported) {
@@ -90,7 +124,6 @@ export class ArSessionController {
 
     await this.world.renderer.xr.setSession(session);
 
-    // Prefer local-floor for accurate floor level tracking; fall back to local
     try {
       this.referenceSpace = await session.requestReferenceSpace("local-floor");
     } catch {
@@ -108,6 +141,7 @@ export class ArSessionController {
     this._placed = false;
     this._repositioning = false;
     this._rotationY = 0;
+    this._isCameraMode = false;
     this.world.model.root.visible = false;
     this.world.controls.enabled = false;
 
@@ -118,7 +152,59 @@ export class ArSessionController {
     return true;
   }
 
+  async startCameraAr(): Promise<boolean> {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Camera video access is not available on this device.");
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+      audio: false,
+    });
+
+    const video = document.getElementById("ar-camera-feed") as HTMLVideoElement | null;
+    if (video) {
+      video.srcObject = stream;
+      video.classList.remove("hidden");
+      await video.play().catch(() => {});
+    }
+
+    this.cameraStream = stream;
+    this._isCameraMode = true;
+    this._active = true;
+    this._placed = true;
+    this._repositioning = false;
+    this._rotationY = 0;
+
+    this.hideStudioForAr();
+    this.ensureShadowPlane();
+
+    // Position camera for optimal tabletop/floor perspective
+    this.world.camera.position.set(0, 0.75, 1.85);
+    this.world.controls.target.set(0, 0, 0);
+    this.world.controls.enabled = true;
+
+    this.applyPlacement();
+    this.emitStatus("Camera AR active! Tap any part to inspect, or drag to rotate.");
+    return true;
+  }
+
   async stop(): Promise<void> {
+    if (this.cameraStream) {
+      this.cameraStream.getTracks().forEach((track) => track.stop());
+      this.cameraStream = null;
+      const video = document.getElementById("ar-camera-feed") as HTMLVideoElement | null;
+      if (video) {
+        video.pause();
+        video.srcObject = null;
+        video.classList.add("hidden");
+      }
+    }
+
     const session = this.world.renderer.xr.getSession();
     if (session) {
       await session.end();
@@ -141,6 +227,15 @@ export class ArSessionController {
 
   setRepositioning(reposition: boolean): void {
     if (!this._active) return;
+    if (this._isCameraMode) {
+      this._rotationY = 0;
+      this.world.camera.position.set(0, 0.75, 1.85);
+      this.world.controls.target.set(0, 0, 0);
+      this.world.controls.update();
+      this.applyPlacement();
+      this.emitStatus("View re-centered! Tap parts to inspect or shift gears below.");
+      return;
+    }
     this._repositioning = reposition;
     if (this.reticle) {
       this.reticle.visible = reposition;
@@ -160,7 +255,7 @@ export class ArSessionController {
   }
 
   update(_dt: number, frame: XRFrame | null): void {
-    if (!this._active || !frame || !this.hitTestSource || !this.referenceSpace || !this.reticle) {
+    if (this._isCameraMode || !this._active || !frame || !this.hitTestSource || !this.referenceSpace || !this.reticle) {
       return;
     }
 
@@ -230,6 +325,13 @@ export class ArSessionController {
 
     const scale = this.getTargetScale();
     root.scale.setScalar(scale);
+
+    if (this._isCameraMode) {
+      root.position.set(0, -0.15 * scale, 0);
+      root.quaternion.identity();
+      root.rotateY(this._rotationY);
+      return;
+    }
 
     // Base contact point: casing bottom is approx 0.22m below origin at scale 1.0
     const verticalOffset = 0.22 * scale;
@@ -370,6 +472,7 @@ export class ArSessionController {
     this._active = false;
     this._placed = false;
     this._repositioning = false;
+    this._isCameraMode = false;
 
     if (this.hitTestSource) {
       this.hitTestSource.cancel();

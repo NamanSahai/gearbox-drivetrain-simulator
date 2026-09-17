@@ -143,6 +143,7 @@ export class UIManager {
   private lessonStep = 0;
   private currentComponentIndex = 0;
   private inspectMinimized = false;
+  private arInspectMinimized = false;
   private readonly keys = new Set<string>();
 
   constructor(private readonly cb: UICallbacks) {}
@@ -264,18 +265,45 @@ export class UIManager {
   }
 
   showArComponent(info: ComponentInfo): void {
-    const card = document.getElementById("ar-inspect-card");
-    if (!card) return;
+    const idx = COMPONENTS.findIndex((c) => c.id === info.id);
+    if (idx >= 0) this.currentComponentIndex = idx;
+
     this.setText("ar-card-cat", info.category);
     this.setText("ar-card-title", info.name);
-    this.setText("ar-card-desc", info.primaryFunction);
+    this.setText("ar-card-function", info.primaryFunction);
     this.setText("ar-card-flow", info.powerFlowRole);
-    card.classList.remove("hidden");
+    this.setText("ar-card-note", info.engineeringNote);
+    this.setText("ar-comp-index-badge", `${this.currentComponentIndex + 1} / ${COMPONENTS.length}`);
+
+    // Backwards compatibility for any legacy ar card elements:
+    this.setText("ar-card-desc", info.primaryFunction);
+
+    const arSelect = document.getElementById("ar-component-select") as HTMLSelectElement | null;
+    if (arSelect) arSelect.value = info.id;
+
+    const webSelect = document.getElementById("component-select") as HTMLSelectElement | null;
+    if (webSelect) webSelect.value = info.id;
+
+    const sheet = document.getElementById("ar-inspect-sheet");
+    if (sheet) sheet.classList.remove("hidden");
+
+    const card = document.getElementById("ar-inspect-card");
+    if (card) card.classList.remove("hidden");
   }
 
   hideArComponent(): void {
+    const sheet = document.getElementById("ar-inspect-sheet");
+    if (sheet) sheet.classList.add("hidden");
     const card = document.getElementById("ar-inspect-card");
     if (card) card.classList.add("hidden");
+  }
+
+  toggleArInspectMinimized(): void {
+    this.arInspectMinimized = !this.arInspectMinimized;
+    const sheet = document.getElementById("ar-inspect-sheet");
+    const label = document.getElementById("ar-min-label");
+    if (sheet) sheet.classList.toggle("minimized", this.arInspectMinimized);
+    if (label) label.textContent = this.arInspectMinimized ? "Expand" : "Minimize";
   }
 
   private setText(id: string, value: string): void {
@@ -295,6 +323,20 @@ export class UIManager {
       });
       select.addEventListener("change", () => {
         this.cb.onInspect(select.value);
+      });
+    }
+
+    const arSelect = document.getElementById("ar-component-select") as HTMLSelectElement | null;
+    if (arSelect) {
+      arSelect.innerHTML = "";
+      COMPONENTS.forEach((item, index) => {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = `${index + 1}. ${item.name} (${item.category})`;
+        arSelect.appendChild(opt);
+      });
+      arSelect.addEventListener("change", () => {
+        this.cb.onInspect(arSelect.value);
       });
     }
 
@@ -507,6 +549,9 @@ export class UIManager {
     document.getElementById("btn-ar-rot-left")?.addEventListener("click", () => this.cb.onArRotate(-Math.PI / 12));
     document.getElementById("btn-ar-rot-right")?.addEventListener("click", () => this.cb.onArRotate(Math.PI / 12));
     document.getElementById("btn-ar-card-close")?.addEventListener("click", () => this.hideArComponent());
+    document.getElementById("btn-ar-minimize-inspect")?.addEventListener("click", () => this.toggleArInspectMinimized());
+    document.getElementById("btn-ar-prev-comp")?.addEventListener("click", () => this.selectPrevComponent());
+    document.getElementById("btn-ar-next-comp")?.addEventListener("click", () => this.selectNextComponent());
 
     document.querySelectorAll("#ar-shifter button").forEach((btn) => {
       btn.addEventListener("click", (ev) => {

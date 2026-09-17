@@ -6,7 +6,7 @@ import { GearFailureAnimation } from "./gearbox/GearFailureAnimation";
 import { GearboxScene } from "./gearbox/GearboxScene";
 import { applyScenario } from "./simulation/HypotheticalScenarios";
 import { GearboxSimulation, type CasingMode, type GearId } from "./simulation/GearboxSimulation";
-import { isIosDevice, launchIosArQuickLook } from "./gearbox/IosArQuickLook";
+import { launchIosArQuickLook } from "./gearbox/IosArQuickLook";
 import { UIManager } from "./ui/UIManager";
 
 const canvas = document.getElementById("viewport");
@@ -89,22 +89,20 @@ window.addEventListener("pointerup", (ev) => {
   if (
     target &&
     target.closest(
-      "button, select, input, .sheet, .modal, .ar-bottom-controls, .ar-topbar, .quick-shifter-bar, .ar-inspect-card, a",
+      "button, select, input, .sheet, .modal, .ar-bottom-controls, .ar-topbar, .quick-shifter-bar, .ar-inspect-sheet, .ar-inspect-card, a",
     )
   ) {
     return;
   }
 
-  // If in AR mode and not yet placed or repositioning, let surface hit-test place the model
-  if (ar.active && (!ar.placed || ar.repositioning)) {
+  // If in WebXR mode and not yet placed or repositioning, let surface hit-test place the model
+  if (ar.active && !ar.isCameraMode && (!ar.placed || ar.repositioning)) {
     return;
   }
 
   const id = world.pick(ev.clientX, ev.clientY);
   if (id) {
     inspect(id);
-  } else if (ar.active) {
-    ui.hideArComponent();
   }
 });
 
@@ -182,22 +180,25 @@ async function startAr(): Promise<void> {
       await ar.stop();
       return;
     }
-    // 1. On iPhone / iPad (iOS Safari), launch native Apple AR Quick Look!
-    if (isIosDevice()) {
-      sim.feedback = "Launching native Apple AR Quick Look for iPhone/iPad...";
-      await launchIosArQuickLook(world.model.root);
-      sim.feedback = "Apple AR Quick Look active! Aim camera at table or floor.";
-      return;
-    }
 
-    // 2. On Android / WebXR browsers, start live WebXR immersive-ar session!
+    // 1. On Android / WebXR browsers with ARCore, start live WebXR immersive-ar session!
     const supported = await ArSessionController.isSupported();
     if (supported) {
       await ar.start();
       return;
     }
 
-    // 3. Otherwise (desktop or non-WebXR browser), open Mobile AR modal:
+    // 2. On iPhone / iPad (iOS Safari) or mobile browsers without WebXR, launch interactive Web Camera AR!
+    if (ArSessionController.hasCameraSupport()) {
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 900;
+      if (isMobile) {
+        sim.feedback = "Starting Web Camera AR with real-time rear camera tracking...";
+        await ar.startCameraAr();
+        return;
+      }
+    }
+
+    // 3. Otherwise (desktop browser), open Mobile AR modal with QR & Apple Quick Look option:
     ui.openQr();
     sim.feedback = "Scan QR with your phone camera for Floor & Table AR tracking";
   } catch (err) {

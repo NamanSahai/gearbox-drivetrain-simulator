@@ -16,6 +16,7 @@
   </head>
   <body>
     <div id="app">
+      <video id="ar-camera-feed" class="ar-camera-feed hidden" playsinline autoplay muted></video>
       <canvas id="viewport" aria-label="3D gearbox viewport"></canvas>
 
       <header class="topbar">
@@ -272,21 +273,53 @@
           <button type="button" id="btn-ar-exit" class="ar-exit-btn">Exit AR</button>
         </header>
 
-        <!-- Floating AR Component Inspector Card (shown when tapping parts in AR) -->
-        <div class="ar-inspect-card hidden" id="ar-inspect-card">
-          <div class="ar-card-header">
-            <div class="ar-card-title-wrap">
-              <span class="ar-card-cat" id="ar-card-cat">Category</span>
-              <h3 class="ar-card-title" id="ar-card-title">Component</h3>
+        <!-- Floating AR Component Inspector Sheet (full parity with web inspect mode) -->
+        <article class="ar-inspect-sheet hidden" id="ar-inspect-sheet" aria-label="AR Component Inspector">
+          <header class="ar-sheet-header">
+            <div class="ar-sheet-title-wrap">
+              <span class="ar-sheet-badge">Mechanical Inspector</span>
+              <span class="ar-comp-index-badge" id="ar-comp-index-badge">1 / 18</span>
             </div>
-            <button type="button" class="ar-card-close" id="btn-ar-card-close" title="Dismiss card">✕</button>
+            <div class="ar-header-actions">
+              <button type="button" class="ar-min-btn" id="btn-ar-minimize-inspect" title="Minimize / Expand panel">
+                <span id="ar-min-label">Minimize</span>
+              </button>
+              <button type="button" class="ar-card-close" id="btn-ar-card-close" title="Dismiss card">✕</button>
+            </div>
+          </header>
+
+          <!-- Component Picker: Prev ◀ / Dropdown / Next ▶ -->
+          <div class="ar-picker-row">
+            <button type="button" id="btn-ar-prev-comp" class="ar-picker-arrow" title="Previous component">◀</button>
+            <div class="ar-select-container">
+              <select id="ar-component-select" class="ar-component-select" aria-label="Select component to inspect in AR"></select>
+            </div>
+            <button type="button" id="btn-ar-next-comp" class="ar-picker-arrow" title="Next component">▶</button>
           </div>
-          <p class="ar-card-desc" id="ar-card-desc"></p>
-          <div class="ar-card-flow-wrap">
-            <span class="ar-card-flow-label">Power Flow:</span>
-            <p class="ar-card-flow" id="ar-card-flow"></p>
+
+          <div class="ar-inspect-body" id="ar-inspect-body">
+            <div class="ar-card-meta">
+              <span class="ar-card-cat" id="ar-card-cat">Mechanical Category</span>
+              <h3 class="ar-card-title" id="ar-card-title">Select a component</h3>
+            </div>
+
+            <div class="ar-card-desc-box">
+              <span class="ar-section-label">Primary Function</span>
+              <p class="ar-card-desc" id="ar-card-function"></p>
+            </div>
+
+            <div class="ar-card-specs">
+              <div class="ar-spec-block">
+                <span class="ar-spec-label">Power Flow Role</span>
+                <p class="ar-spec-value" id="ar-card-flow"></p>
+              </div>
+              <div class="ar-spec-block">
+                <span class="ar-spec-label">Engineering Note</span>
+                <p class="ar-spec-value" id="ar-card-note"></p>
+              </div>
+            </div>
           </div>
-        </div>
+        </article>
 
         <div class="ar-bottom-controls">
           <div class="ar-mode-tabs" role="group" aria-label="Scale presets">
