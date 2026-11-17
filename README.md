@@ -1,7 +1,8 @@
 # 3D Educational Manual Gearbox & Drivetrain Simulator
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Build & Test](https://img.shields.io/badge/tests-196%20passed-brightgreen.svg)](tests/test_gearbox.ts)
+[![Build & Test](https://img.shields.io/badge/tests-221%20passed-brightgreen.svg)](tests/test_gearbox.ts)
+[![Apple Vision Pro](https://img.shields.io/badge/visionOS-compatible-a855f7.svg)](src/visionos/VisionProSessionController.ts)
 [![Vercel Deployment](https://img.shields.io/badge/deployment-live%20on%20vercel-00e5ff.svg)](https://gearbox-drivetrain-simulator.vercel.app/)
 
 An interactive 3D web-based engineering simulator demonstrating the internal kinematics, physics, and real-world mechanics of a **3-shaft constant-mesh manual transmission** and automotive drivetrain.
@@ -43,7 +44,26 @@ An interactive 3D web-based engineering simulator demonstrating the internal kin
   - Clicking **Repair** rebuilds the transmission, dissolves debris shards, clears smoke, and idles the engine safely in Neutral.
   - Includes an AR-native `#btn-ar-repair` button in the WebXR overlay header so users can repair without leaving their AR session.
 
-### 3. Augmented Reality (AR) with Real-World Surface Tracking
+### 3. Apple Vision Pro (visionOS Safari) Spatial Computing & Hand Gestures
+- **Native visionOS WebXR Architecture**:
+  - Purpose-built for Apple Vision Pro Safari: initiates `immersive-vr` with passthrough mixed reality and `hand-tracking` without relying on `dom-overlay` (which visionOS does not support in WebXR).
+  - One-click launch via the dedicated **Vision Pro** top-bar button or from the Mobile / Spatial QR modal.
+- **Natural Look & Pinch Input**:
+  - Gaze at any gear, shaft, or spatial button and pinch your thumb and index finger together to select, shift gears, or trigger actions.
+- **25-Joint WebXR Hand Tracking**:
+  - Tracks 25 skeletal joints per hand with glowing frosted-glass nodes and fingertip beacons.
+  - **Direct Index Finger Poke**: Reach directly into space with your physical index finger to push 3D spatial buttons or tap transmission parts within 4.5 cm proximity.
+  - **Single-Hand Pinch & Drag**: Grab and drag in 3D space to rotate the assembly or inspect internal gears.
+  - **Two-Handed Spatial Gestures**:
+    - **Pinch-to-Scale**: Pinch with both hands and expand or contract your hand distance to dynamically scale the gearbox between tabletop (0.25x) and life-size (1.4x).
+    - **Spatial Rotation**: Twist both hands around the vertical axis to rotate the transmission smoothly in physical space.
+    - **Two-Handed Translation**: Move both pinched hands to reposition the floating gearbox anywhere in your room.
+- **3D In-World Spatial Glass UI**:
+  - **Spatial HUD**: Floating frosted-glass tachometer, gear badge (`N`, `1`, `2`, `3`, `4`, `5`, `R`), digital speedometer (`km/h` and `mph`), and live mechanical feedback marquee.
+  - **Spatial Quick-Shifter Palette**: Floating 3D buttons for direct finger poking or look-and-pinch gear shifting, repair, exploded view toggle, casing modes (`Cutaway`, `Solid`, `Wireframe`, `Hidden`), and scale toggling.
+  - **Spatial 3D Component Inspector Card**: Displays complete engineering specs and navigation controls floating beside the selected component in 3D space.
+
+### 4. Augmented Reality (AR) with Real-World Surface Tracking
 - **Interactive 3D Part Clicking in AR**: Tap directly on any 3D gear or shaft in your physical environment to select, highlight, and inspect it.
 - **Rich AR Component Inspector**:
   - Full parity with web inspect mode: displays **Category**, **Component Name**, **1 / 18 Index Badge**, **Primary Function**, **Power Flow Role**, and **Engineering Note**.
@@ -58,13 +78,13 @@ An interactive 3D web-based engineering simulator demonstrating the internal kin
   - Live AR Quick Shifter (`R`, `1`, `2`, `3`, `4`, `5`, `N`) and ↺ 15° / ↻ 15° rotation controls.
 - **Apple Quick Look (USDZ)**: Optional direct export for native Apple ARKit plane locking.
 
-### 4. Interactive 3D Constant-Mesh Assembly
+### 5. Interactive 3D Constant-Mesh Assembly
 - **18 Educational Components**: Flywheel, Clutch Friction Disc, Pressure Plate, Release Bearing, Input Shaft & Pinion, Countershaft (Layshaft), 1st–5th Gear Pairs, Reverse Idler, Synchronizer Sleeves (1/2, 3/4, 5/R), Selector Forks, Transmission Casing, and Differential.
 - **Physical Dog-Tooth Engagement**: Watch synchronizer sleeves and balk rings physically slide into mesh with speed gear dog teeth as you shift gears.
 - **True Mechanical Kinematics**: Shafts, countershaft gears, and free-spinning speed gears rotate in real-time according to exact reduction ratios.
 - **Obstruction-Free Raycasting**: Smart raycaster prioritizes internal gears, synchronizers, and shafts even when viewing through transparent or cutaway casings.
 
-### 5. Transmission Casing Modes & Exploded View
+### 6. Transmission Casing Modes & Exploded View
 - **4 Casing Display Modes**:
   - **Cutaway**: Transparent top/side with metallic aluminum structural ribs.
   - **Solid**: Fully enclosed aluminum casting with cast texture.
@@ -95,7 +115,7 @@ An interactive 3D web-based engineering simulator demonstrating the internal kin
 ## Tech Stack
 
 - **Three.js** (WebGL 3D rendering, PBR materials, shadows, raycasting, and kinematic animations)
-- **WebXR Device API** (AR surface hit-testing and DOM overlay)
+- **WebXR Device API & Hand Input Module** (Apple Vision Pro spatial computing, 25-joint hand tracking, and Android AR surface hit-testing)
 - **HTML5 getUserMedia API** (Universal Web Camera AR passthrough)
 - **Three.js USDZExporter** (Apple AR Quick Look integration)
 - **TypeScript** & **Vite** (Type-safe compilation and ultra-fast bundling)

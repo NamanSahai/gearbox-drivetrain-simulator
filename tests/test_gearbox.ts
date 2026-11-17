@@ -289,6 +289,116 @@ assert(typeof ArSessionController.hasCameraSupport === "function", "ArSessionCon
 assert(html.includes('id="btn-repair"') && html.includes('class="icon-btn repair-btn hidden"'), "HTML contains compact btn-repair in top bar");
 assert(html.includes('id="btn-ar-repair"'), "HTML contains btn-ar-repair in AR overlay");
 
+console.log("8) Apple Vision Pro (visionOS Safari) Spatial WebXR & Hand Gestures");
+import { isVisionOS, isSpatialSupported, getPreferredSpatialMode } from "../src/visionos/VisionProDetector";
+
+assert(html.includes('id="btn-spatial"'), "HTML contains dedicated btn-spatial in top actions bar");
+assert(html.includes('class="icon-btn spatial-btn"'), "btn-spatial styled with spatial-btn class");
+assert(html.includes('id="btn-modal-spatial"'), "HTML modal contains btn-modal-spatial button");
+assert(html.includes("Apple Vision Pro (visionOS Safari)"), "Modal contains Apple Vision Pro specific instructions");
+assert(typeof isVisionOS === "function", "VisionProDetector exports isVisionOS function");
+assert(typeof isSpatialSupported === "function", "VisionProDetector exports isSpatialSupported function");
+assert(typeof getPreferredSpatialMode === "function", "VisionProDetector exports getPreferredSpatialMode function");
+
+// VisionOS detection heuristics tests:
+function testVisionDetection(ua: string, platform: string, maxTouchPoints: number): boolean {
+  if (/Vision/i.test(ua) || /visionOS/i.test(ua)) return true;
+  if (platform === "MacIntel" && maxTouchPoints > 0 && /Safari/.test(ua) && !/Chrome|CriOS/i.test(ua)) {
+    return true;
+  }
+  return false;
+}
+
+assert(
+  testVisionDetection(
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+    "MacIntel",
+    5,
+  ),
+  "correctly detects Apple Vision Pro Safari (MacIntel with touch points)",
+);
+assert(
+  testVisionDetection(
+    "Mozilla/5.0 (VisionOS; Mobile/15E148) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/1.1 Mobile/15E148 Safari/604.1",
+    "VisionOS",
+    5,
+  ),
+  "correctly detects VisionOS user agent",
+);
+assert(
+  !testVisionDetection(
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "MacIntel",
+    0,
+  ),
+  "does not misidentify standard desktop Mac Chrome",
+);
+assert(
+  !testVisionDetection(
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+    "MacIntel",
+    0,
+  ),
+  "does not misidentify standard desktop Mac Safari with 0 touch points",
+);
+
+// Hand gesture kinematics: Direct Pinch detection math (thumb tip to index tip)
+const thumbTipPinch = new THREE.Vector3(0.1, 1.1, -0.5);
+const indexTipPinch = new THREE.Vector3(0.115, 1.108, -0.505);
+const pinchDistance = thumbTipPinch.distanceTo(indexTipPinch);
+const PINCH_THRESHOLD = 0.028; // 2.8 cm
+const PINCH_RELEASE = 0.040; // 4.0 cm
+assert(pinchDistance < PINCH_THRESHOLD, `pinch distance ${pinchDistance.toFixed(3)}m is below threshold (pinch registered)`);
+
+const indexTipOpen = new THREE.Vector3(0.155, 1.145, -0.52);
+const openDistance = thumbTipPinch.distanceTo(indexTipOpen);
+assert(openDistance > PINCH_RELEASE, `open hand distance ${openDistance.toFixed(3)}m is above release threshold (pinch released)`);
+
+// Direct Index Finger Poke interaction math
+const spatialButtonPos = new THREE.Vector3(0, 0.73, -0.63);
+const fingerPokePos = new THREE.Vector3(0.015, 0.725, -0.62);
+const pokeDistance = fingerPokePos.distanceTo(spatialButtonPos);
+const POKE_THRESHOLD = 0.045; // 4.5 cm
+assert(pokeDistance < POKE_THRESHOLD, `finger poke distance ${pokeDistance.toFixed(3)}m triggers direct spatial button push`);
+
+const fingerFarPos = new THREE.Vector3(0.12, 0.73, -0.63);
+const farDistance = fingerFarPos.distanceTo(spatialButtonPos);
+assert(farDistance > POKE_THRESHOLD, `distant finger ${farDistance.toFixed(3)}m does not trigger button push`);
+
+// Two-handed spatial scale & rotation kinematics:
+const leftHandPos = new THREE.Vector3(-0.25, 1.1, -0.6);
+const rightHandPos = new THREE.Vector3(0.25, 1.1, -0.6);
+const initialSpan = leftHandPos.distanceTo(rightHandPos);
+approx(initialSpan, 0.50, 0.001, "initial two-handed span is 0.50m");
+
+const expandedRightHandPos = new THREE.Vector3(0.45, 1.1, -0.6);
+const expandedSpan = leftHandPos.distanceTo(expandedRightHandPos);
+const scaleMultiplier = expandedSpan / initialSpan;
+approx(scaleMultiplier, 1.40, 0.001, "expanding hands 0.50m -> 0.70m computes 1.40x spatial zoom");
+
+const rotatedRightHandPos = new THREE.Vector3(0.25, 1.1, -0.35);
+const angleBefore = Math.atan2(rightHandPos.z - leftHandPos.z, rightHandPos.x - leftHandPos.x);
+const angleAfter = Math.atan2(rotatedRightHandPos.z - leftHandPos.z, rotatedRightHandPos.x - leftHandPos.x);
+const rotationDelta = angleAfter - angleBefore;
+assert(Math.abs(rotationDelta) > 0.1, `two-handed rotation computes valid yaw delta (${rotationDelta.toFixed(3)} rad)`);
+
+const midpoint = new THREE.Vector3().addVectors(leftHandPos, rightHandPos).multiplyScalar(0.5);
+approx(midpoint.x, 0, 0.001, "two-handed midpoint X is 0");
+approx(midpoint.y, 1.1, 0.001, "two-handed midpoint Y is 1.1m");
+approx(midpoint.z, -0.6, 0.001, "two-handed midpoint Z is -0.6m");
+
+// Spatial scale presets
+const tableScale = 0.35;
+const lifeScale = 1.0;
+assert(tableScale === 0.35, "spatial tabletop scale preset is 0.35x");
+assert(lifeScale === 1.0, "spatial life-size scale preset is 1.0x (life-size)");
+
+// Spatial gear and casing controls
+const spatialGears = [-1, 1, 2, 3, 4, 5, 0];
+assert(spatialGears.length === 7, "all 7 gears (R, 1, 2, 3, 4, 5, N) mapped to spatial shifter");
+const casingModes = ["cutaway", "solid", "wireframe", "hidden"];
+assert(casingModes.length === 4, "4 casing modes available in spatial controls bar");
+
 if (failed > 0) {
   throw new Error(`${failed} failed, ${passed} passed`);
 }

@@ -106,6 +106,37 @@ body {
   transform: translateY(1px);
 }
 
+.spatial-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.28), rgba(168, 85, 247, 0.28)) !important;
+  border: 1px solid rgba(168, 85, 247, 0.6) !important;
+  color: #f3e8ff !important;
+  font-weight: 700;
+  border-radius: 12px;
+  min-height: 40px;
+  padding: 0 12px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.spatial-btn:hover {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.5), rgba(168, 85, 247, 0.5)) !important;
+  color: #ffffff !important;
+  border-color: #d8b4fe !important;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.7);
+  transform: translateY(-1px);
+}
+
+.spatial-btn:active {
+  transform: translateY(1px);
+}
+
 @keyframes pulse-repair {
   0%, 100% {
     box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);

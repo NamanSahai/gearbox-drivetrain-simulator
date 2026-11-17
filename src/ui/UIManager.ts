@@ -135,6 +135,7 @@ export interface UICallbacks {
   onArReposition: () => void;
   onArRotate: (deltaRadians: number) => void;
   onAppleQuickLook?: () => void;
+  onSpatialVisionPro?: () => void;
 }
 
 export class UIManager {
@@ -533,6 +534,11 @@ export class UIManager {
       btn.textContent = muted ? "Muted" : "Sound";
     });
     document.getElementById("btn-modal-usdz")?.addEventListener("click", () => this.cb.onAppleQuickLook?.());
+    document.getElementById("btn-spatial")?.addEventListener("click", () => this.cb.onSpatialVisionPro?.());
+    document.getElementById("btn-modal-spatial")?.addEventListener("click", () => {
+      document.getElementById("qr-modal")?.classList.add("hidden");
+      this.cb.onSpatialVisionPro?.();
+    });
     document.getElementById("btn-ar")?.addEventListener("click", () => this.cb.onAr());
     document.getElementById("btn-ar-sheet")?.addEventListener("click", () => {
       this.openPanel(null);

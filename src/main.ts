@@ -8,6 +8,8 @@ import { applyScenario } from "./simulation/HypotheticalScenarios";
 import { GearboxSimulation, type CasingMode, type GearId } from "./simulation/GearboxSimulation";
 import { launchIosArQuickLook } from "./gearbox/IosArQuickLook";
 import { UIManager } from "./ui/UIManager";
+import { VisionProSessionController } from "./visionos/VisionProSessionController";
+import { isVisionOS, isSpatialSupported } from "./visionos/VisionProDetector";
 
 const canvas = document.getElementById("viewport");
 if (!(canvas instanceof HTMLCanvasElement)) {
@@ -20,6 +22,7 @@ const explode = new ExplodedView(world.model);
 const failure = new GearFailureAnimation(world.scene, world.model);
 const audio = new SoundEffects();
 const ar = new ArSessionController(world);
+const visionPro = new VisionProSessionController(world, sim, explode, failure, audio);
 
 const ui = new UIManager({
   onShift: (gear) => handleShift(gear),
@@ -51,7 +54,11 @@ const ui = new UIManager({
   onExplodeAmount: (value) => explode.setTarget(value),
   onUnlockAudio: () => audio.unlock(),
   onAr: () => void startAr(),
-  onArExit: () => void ar.stop(),
+  onSpatialVisionPro: () => void startVisionProSpatial(),
+  onArExit: () => {
+    if (visionPro.active) void visionPro.stop();
+    else void ar.stop();
+  },
   onArScaleMode: (mode) => ar.setScaleMode(mode),
   onArReposition: () => ar.setRepositioning(!ar.repositioning),
   onArRotate: (deltaRadians) => ar.rotate(deltaRadians),
@@ -60,6 +67,17 @@ const ui = new UIManager({
 
 ar.onStatusChange = (status) => {
   ui.updateArStatus(status);
+  sim.feedback = status.hint;
+};
+
+visionPro.onStatusChange = (status) => {
+  ui.updateArStatus({
+    active: status.active,
+    placed: true,
+    repositioning: false,
+    scaleMode: status.scaleMode === "life" ? "floor" : "table",
+    hint: status.hint,
+  });
   sim.feedback = status.hint;
 };
 
@@ -115,7 +133,9 @@ function inspect(id: string): void {
   audio.unlock();
   audio.shiftClick();
 
-  if (ar.active) {
+  if (visionPro.active) {
+    visionPro.inspectComponent(id);
+  } else if (ar.active) {
     ui.showArComponent(info);
     sim.feedback = `AR: ${info.name} selected`;
   } else {
@@ -173,11 +193,48 @@ function runScenario(id: string): void {
   }
 }
 
+async function startVisionProSpatial(): Promise<void> {
+  audio.unlock();
+  try {
+    if (visionPro.active) {
+      await visionPro.stop();
+      return;
+    }
+    if (ar.active) {
+      await ar.stop();
+    }
+
+    const supported = await isSpatialSupported();
+    if (supported) {
+      sim.feedback = "Launching Apple Vision Pro Spatial WebXR experience...";
+      await visionPro.start();
+      return;
+    }
+
+    ui.openQr();
+    sim.feedback = "Open on Apple Vision Pro Safari to launch Spatial WebXR";
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Vision Pro Spatial mode failed to start";
+    sim.feedback = message;
+    ui.openQr();
+  }
+}
+
 async function startAr(): Promise<void> {
   audio.unlock();
   try {
     if (ar.active) {
       await ar.stop();
+      return;
+    }
+    if (visionPro.active) {
+      await visionPro.stop();
+      return;
+    }
+
+    // 0. If running in Apple Vision Pro Safari or spatial WebXR supported, launch spatial experience!
+    if (isVisionOS()) {
+      await startVisionProSpatial();
       return;
     }
 
@@ -214,7 +271,11 @@ let prevSmoke = false;
 
 function frame(_time?: number, frameXr?: XRFrame): void {
   const dt = world.tick();
-  ar.update(dt, frameXr ?? null);
+  if (visionPro.active) {
+    visionPro.update(dt, frameXr ?? null);
+  } else {
+    ar.update(dt, frameXr ?? null);
+  }
   sim.update(dt);
   explode.update(dt);
   failure.update(dt);

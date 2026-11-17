@@ -31,6 +31,9 @@
           <button type="button" id="btn-repair" class="icon-btn repair-btn hidden" title="Repair transmission">
             Repair
           </button>
+          <button type="button" id="btn-spatial" class="icon-btn spatial-btn" title="Apple Vision Pro Spatial Experience">
+            Vision Pro
+          </button>
           <button type="button" id="btn-ar" class="icon-btn" title="View gearbox in AR">
             AR View
           </button>
@@ -362,12 +365,14 @@
           </div>
           <p class="url" id="qr-url"></p>
           <div class="ar-instructions">
+            <p><strong>Apple Vision Pro (visionOS Safari):</strong> Open this link in Safari on Apple Vision Pro, tap <em>Vision Pro</em> to launch the spatial WebXR experience with full eye gaze, 25-joint hand gestures, and 3D floating glass HUD!</p>
             <p><strong>iPhone / iPad (Safari):</strong> Open link or tap <em>Apple Quick Look (USDZ)</em> below to launch native iOS ARKit surface tracking on your floor or table!</p>
             <p><strong>Android (Chrome):</strong> Open link above, tap <em>AR View</em> → aim camera at table or floor to detect surface → tap to place with live running gears!</p>
-            <p class="ssl-tip"><em>Tip: When opening the local link on your phone, tap <strong>Advanced → Proceed to 10.21.0.127 (unsafe)</strong> to accept the local HTTPS certificate.</em></p>
+            <p class="ssl-tip"><em>Tip: When opening the local link on your phone or Vision Pro, tap <strong>Advanced → Proceed to 10.21.0.127 (unsafe)</strong> to accept the local HTTPS certificate.</em></p>
           </div>
           <div class="row modal-buttons">
             <button type="button" id="btn-copy-url">Copy HTTPS URL</button>
+            <button type="button" id="btn-modal-spatial" class="spatial-btn">Vision Pro Spatial</button>
             <button type="button" id="btn-modal-usdz" class="primary-btn">Apple Quick Look (USDZ)</button>
             <button type="button" id="btn-close-qr" class="ghost">Close</button>
           </div>
